@@ -1,0 +1,3 @@
+boto3==1.34.8
+humanize==4.9.0
+prettytable==3.9.0
