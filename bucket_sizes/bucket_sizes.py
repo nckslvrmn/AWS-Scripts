@@ -54,12 +54,16 @@ def main():
     s3 = sess.client('s3')
     cw = sess.client('cloudwatch')
     sizes = []
-    for bucket in s3.list_buckets()['Buckets']:
-        if s3.head_bucket(Bucket=bucket['Name'])['ResponseMetadata']['HTTPHeaders']['x-amz-bucket-region'] != sess.region_name:
+    if len(sys.argv) > 1:
+        buckets = [sys.argv[1]]
+    else:
+        buckets = [bucket['Name'] for bucket in s3.list_buckets()['Buckets']]
+    for bucket in buckets:
+        if s3.head_bucket(Bucket=bucket)['ResponseMetadata']['HTTPHeaders']['x-amz-bucket-region'] != sess.region_name:
             continue
-        bucket_sizes = {'Name': bucket['Name']}
+        bucket_sizes = {'Name': bucket}
         resp = cw.get_metric_data(
-            MetricDataQueries=construct_query(bucket['Name']), StartTime=(datetime.today() - timedelta(days=3)), EndTime=(datetime.today() - timedelta(days=2))
+            MetricDataQueries=construct_query(bucket), StartTime=(datetime.today() - timedelta(days=3)), EndTime=(datetime.today() - timedelta(days=2))
         )
         for metric in resp['MetricDataResults']:
             if len(metric['Values']) > 0:
