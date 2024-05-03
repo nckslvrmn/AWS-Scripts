@@ -23,6 +23,10 @@ class GlacierRestorer:
         for page in pages:
             try:
                 for obj in page["Contents"]:
+                    if (obj["StorageClass"] not in ["GLACIER", "DEEP_ARCHIVE"]) or (
+                        obj["Key"].endswith("/")
+                    ):
+                        continue
                     self.keys.append(obj["Key"])
             except KeyError:
                 continue
@@ -58,12 +62,15 @@ class GlacierRestorer:
     def is_object_restored(self, key):
         response = self.s3_client.head_object(Bucket=self.args.bucket, Key=key)
         status = response["ResponseMetadata"]["HTTPHeaders"].get("x-amz-restore")
-        if status != 'ongoing-request="true"':
+        if status == 'ongoing-request="true"':
+            return False
+        else:
             self.log("VERBOSE", f"restore complete for {key}")
             self.keys.remove(key)
+            return True
 
 
-def restore():
+def parse_args():
     parser = argparse.ArgumentParser(
         prog="glacier_restorer.py",
         description="a script to restore all objects in a given bucket and path",
@@ -74,23 +81,29 @@ def restore():
     parser.add_argument(
         "-t", "--tier", default="Standard", choices=["Standard", "Bulk", "Expedited"]
     )
+    parser.add_argument("-c", "--check-only", action="store_true", default=False)
     parser.add_argument("-v", "--verbose", action="store_true", default=False)
-    args = parser.parse_args()
+    return parser.parse_args()
 
+
+def restore():
+    args = parse_args()
     gr = GlacierRestorer(args)
     gr.collect_keys()
 
     to_restore_count = len(gr.keys)
-    print(f"INFO: found {to_restore_count} keys to restore from glacier")
+    print(f"INFO: found {to_restore_count} objects to restore from glacier")
 
-    for key in gr.keys:
-        gr.restore_object(key)
+    if not args.check_only:
+        for key in gr.keys:
+            gr.restore_object(key)
 
     while len(gr.keys) > 0:
         for key in gr.keys:
             gr.is_object_restored(key)
         print(f"INFO: {to_restore_count - len(gr.keys)} completed, {len(gr.keys)} left")
-        time.sleep(60)
+        if len(gr.keys) != 0:
+            time.sleep(60)
 
 
 if __name__ == "__main__":
