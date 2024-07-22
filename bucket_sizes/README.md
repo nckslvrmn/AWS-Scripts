@@ -7,7 +7,15 @@ spreadsheet tools.
 To Run:
 
 ```
-AWS_PROFILE=blah ./bucket_sizes.py
+> AWS_PROFILE=blah ./bucket_sizes.py
+
+usage: bucket_sizes.py [-h] [-b BUCKET] [--humanize] [--json]
+
+options:
+  -h, --help            show this help message and exit
+  -b BUCKET, --bucket BUCKET
+  --humanize
+  --json
 ```
 
 For pretty google sheets number formatting, use this custom number format:
